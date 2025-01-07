@@ -9,6 +9,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 from langgraph.graph import END, START, StateGraph
 import torch
 from transformers import ElectraForPreTraining ,ElectraTokenizerFast
+from typing import List
 
 
 # Set your OpenAI API key
@@ -52,7 +53,7 @@ def llm_evaluation_node(state: InputState) -> OutputState:
             model="gpt-4",
             messages=[{"role": "system", "content": "You are an AI grader that evaluates student answers."},
                       {"role": "user", "content": prompt}],
-            max_tokens=100,
+            max_tokens=1000,
             temperature=0
         )
         output = response["choices"][0]["message"]["content"].strip()
@@ -342,8 +343,8 @@ builder.add_node("minilm_node",minilm_evaluation_node)
 builder.add_node("labse_node",labse_evaluation_node)
 
 # Define flow of the graph
-#builder.add_edge(START, "llm_node")
-builder.add_edge(START, "sbert_node")
+builder.add_edge(START, "llm_node")
+builder.add_edge("llm_node", "sbert_node")
 builder.add_edge("sbert_node", "roberta_node")
 builder.add_edge("roberta_node","distilroberta_node")
 builder.add_edge("distilroberta_node","t5_node")
@@ -361,47 +362,63 @@ class Item(BaseModel):
     suggested_answer: str
     student_answer: str
     
+#---------------------------------------------------------------------- 
+#                     FastAPI endpoint for Hello 
+#----------------------------------------------------------------------
+
+@app.post("/hello")
+async def Hello():
+    print("hello")
 
 #---------------------------------------------------------------------- 
 #                     FastAPI endpoint for Evaluation
 #----------------------------------------------------------------------
 @app.post("/evaluate")
-async def evaluate_item(item: Item):
-    state = {
-        "suggested_answer": item.suggested_answer,
-        "student_answer": item.student_answer
-    }
-    
-    # Invoke the graph
-    try:
-        result = graph.invoke(state)
-        #state = llm_evaluation_node(state)
-        state = sbert_evaluation_node(state)
-        state = roberta_evaluation_node(state)
-        state = distilroberta_evaluation_node(state)
-        state = t5_evaluation_node(state)
-        state = minilm_evaluation_node(state)
-       # state = electra_evaluation_node(state)
-        state = labse_evaluation_node(state)
-        
-        # Combine and return the results
-        return state
-    except Exception as e:
-        print(f"Exception during graph invocation: {e}")
-        return {
-            "llm_score": 0.0,
-            "llm_feedback": "Error during evaluation.",
-            "sbert_score": 0.0,
-            "roberta_score":0.0,
-            "distilroberta_score":0.0,
-            "t5_score":0.0,
-            "minilm_score":0.0,
-            "electra_score":0.0,
-            "labse_score":0.0
+async def evaluate_items(items: List[Item]):
+    states = []  # Initialize a list to store results
+
+    for item in items:
+        state = {
+            "suggested_answer": item.suggested_answer,
+            "student_answer": item.student_answer
         }
+
+        try:
+            # Directly invoke the evaluation nodes without graph.invoke
+            state = llm_evaluation_node(state)  # Update state with LLM evaluation
+            state = sbert_evaluation_node(state)  # Add SBERT evaluation results
+            state = roberta_evaluation_node(state)  # Add RoBERTa evaluation results
+            state = distilroberta_evaluation_node(state)  # Add DistilRoBERTa evaluation results
+            state = t5_evaluation_node(state)  # Add T5 evaluation results
+            state = minilm_evaluation_node(state)  # Add MiniLM evaluation results
+            state = labse_evaluation_node(state)  # Add LaBSE evaluation results
+
+            # Append the fully processed state to the results list
+            states.append(state)
+        except Exception as e:
+            print(f"Exception during evaluation for item: {e}")
+            # Append a default error result for the failed evaluation
+            states.append({
+                "suggested_answer": item.suggested_answer,
+                "student_answer": item.student_answer,
+                "error": "Evaluation failed.",
+                "scores": {
+                    "llm_score": 0.0,
+                    "sbert_score": 0.0,
+                    "roberta_score": 0.0,
+                    "distilroberta_score": 0.0,
+                    "t5_score": 0.0,
+                    "minilm_score": 0.0,
+                    "labse_score": 0.0
+                }
+            })
+
+    # Return the results list as the API response
+    return {"results": states}
 
 #---------------------------------------------------------------- 
 #                       Run FastAPI
 #----------------------------------------------------------------
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=7100)
+    
