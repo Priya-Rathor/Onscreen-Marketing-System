@@ -10,7 +10,17 @@ from langgraph.graph import END, START, StateGraph
 import torch
 from transformers import ElectraForPreTraining ,ElectraTokenizerFast
 from typing import List
+from fastapi.middleware.cors import CORSMiddleware
 
+app =  FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Set your OpenAI API key
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
@@ -32,7 +42,7 @@ class OutputState(TypedDict):
     labse_score:float
 
 
-app = FastAPI()
+
 
 #---------------------------------------------------------------------- 
 #                       Open AI model 
@@ -368,7 +378,7 @@ class Item(BaseModel):
 
 @app.post("/hello")
 async def Hello():
-    print("hello")
+    return("hello")
 
 #---------------------------------------------------------------------- 
 #                     FastAPI endpoint for Evaluation
@@ -420,5 +430,5 @@ async def evaluate_items(items: List[Item]):
 #                       Run FastAPI
 #----------------------------------------------------------------
 if __name__ == "__main__":
-    uvicorn.run(app, host="127.0.0.1", port=7100)
+    uvicorn.run(app, host="0.0.0.0", port=7100)
     
