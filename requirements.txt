@@ -11,3 +11,9 @@ uvicorn==0.22.0
 huggingface_hub==0.11.1
 langgraph==0.2.59
 pydantic==2.10.3
+
+
+
+
+
+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

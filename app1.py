@@ -450,7 +450,7 @@ async def evaluate_items(items: List[Item]):
             state = sbert_evaluation_node(state)  # Add SBERT evaluation results
             state = roberta_evaluation_node(state)  # Add RoBERTa evaluation results
             state = distilroberta_evaluation_node(state)  # Add DistilRoBERTa evaluation results
-            state = t5_evaluation_node(state)  # Add T5 evaluation results
+            #state = t5_evaluation_node(state)  # Add T5 evaluation results
             state = minilm_evaluation_node(state)  # Add MiniLM evaluation results
             state = labse_evaluation_node(state)  # Add LaBSE evaluation results
 
