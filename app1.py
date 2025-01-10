@@ -11,6 +11,7 @@ import torch
 from transformers import ElectraForPreTraining ,ElectraTokenizerFast
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
+import google.generativeai as genai
 
 app =  FastAPI()
 
@@ -82,10 +83,58 @@ def llm_evaluation_node(state: InputState) -> OutputState:
         feedback = "Error in LLM evaluation."
     
     # Update and return the state
-    state["llm_score"] = score
-    state["llm_feedback"] = feedback
+    state["gpt_score"] = score
+    state["feedback"] = feedback
     return state
         
+
+
+#---------------------------------------------------------------- 
+#                       Gemini Model
+#----------------------------------------------------------------
+
+import google.generativeai as genai
+
+def gemini_evaluation_node(state: InputState) -> OutputState:
+    """Use Gimmia Generative AI to evaluate the student answer and return llm_score with feedback."""
+
+    # Configure Gimmia Generative AI
+    genai.configure(api_key="AIzaSyDUiT3yPTTo2nmoPRj-hpo2r2OyrPH5cqs")
+    model = genai.GenerativeModel("gemini-2.0-flash-exp")
+
+    # Prepare the evaluation prompt
+    prompt = f"""
+    Suggested answer: "{state['suggested_answer']}"
+    Student’s answer: "{state['student_answer']}"
+
+    Evaluate how well the student’s answer matches the suggested answer on a scale from 0 to 10,
+    considering correctness, completeness, and clarity. Provide a numeric score followed by a one-line feedback.
+    Example: "8.5 - Good answer but slightly lacks depth."
+    """
+
+    try:
+        # Generate content using the model
+        response = model.generate_content(prompt)
+        output = response.text.strip()
+
+        if " - " in output:
+            score, feedback = output.split(" - ", 1)
+            score = float(score)
+        else:
+            score = 0.0
+            feedback = "No valid feedback provided."
+
+        print(f"LLM Evaluation Result: score={score}, feedback={feedback}")
+    except Exception as e:
+        print(f"Exception in LLM evaluation: {e}")
+        score = 0.0
+        feedback = "Error in LLM evaluation."
+
+    # Update and return the state
+    state["gemini_score"] = score
+    state["feedback"] = feedback
+    return state
+
 
 #---------------------------------------------------------------- 
 #                       SBERT Model 
@@ -302,7 +351,6 @@ def minilm_evaluation_node(state:InputState)->OutputState:
 #                      labse Model
 #---------------------------------------------------------------- 
 
-labse_model = SentenceTransformer("sentence-transformers/LaBSE")
 
 labse_model = SentenceTransformer("sentence-transformers/LaBSE")
 
@@ -351,6 +399,7 @@ builder.add_node("t5_node", t5_evaluation_node)
 builder.add_node("minilm_node",minilm_evaluation_node)
 #builder.add_node("electra_node",electra_evaluation_node)
 builder.add_node("labse_node",labse_evaluation_node)
+builder.add_node("gimini_node",gemini_evaluation_node)
 
 # Define flow of the graph
 builder.add_edge(START, "llm_node")
@@ -360,8 +409,9 @@ builder.add_edge("roberta_node","distilroberta_node")
 builder.add_edge("distilroberta_node","t5_node")
 builder.add_edge("t5_node","minilm_node")
 builder.add_edge("minilm_node","labse_node")
+builder.add_edge("labse_node","gimini_node")
 #builder.add_edge("electra_node","labse_node")
-builder.add_edge("labse_node",END)
+builder.add_edge("gimini_node",END)
 graph = builder.compile()
 
 
@@ -378,7 +428,7 @@ class Item(BaseModel):
 
 @app.post("/hello")
 async def Hello():
-    return("hello")
+    return ("hello")
 
 #---------------------------------------------------------------------- 
 #                     FastAPI endpoint for Evaluation
@@ -395,7 +445,8 @@ async def evaluate_items(items: List[Item]):
 
         try:
             # Directly invoke the evaluation nodes without graph.invoke
-            state = llm_evaluation_node(state)  # Update state with LLM evaluation
+            state =gemini_evaluation_node(state)
+           # state = llm_evaluation_node(state)  # Update state with LLM evaluation
             state = sbert_evaluation_node(state)  # Add SBERT evaluation results
             state = roberta_evaluation_node(state)  # Add RoBERTa evaluation results
             state = distilroberta_evaluation_node(state)  # Add DistilRoBERTa evaluation results
