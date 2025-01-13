@@ -93,7 +93,6 @@ def llm_evaluation_node(state: InputState) -> OutputState:
 #                       Gemini Model
 #----------------------------------------------------------------
 
-import google.generativeai as genai
 
 def gemini_evaluation_node(state: InputState) -> OutputState:
     """Use Gimmia Generative AI to evaluate the student answer and return llm_score with feedback."""
