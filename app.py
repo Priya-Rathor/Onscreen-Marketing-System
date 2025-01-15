@@ -1,5 +1,5 @@
-import os
-import openai
+#import os
+#import openai
 from typing import TypedDict
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -22,8 +22,8 @@ app.add_middleware(
 )
 
 # Set your OpenAI API key
-os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
-genai_api_key = os.getenv("GENAI_API_KEY")
+#os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+#genai_api_key = os.getenv("GENAI_API_KEY")
 
 # Define Input and Output State
 class InputState(TypedDict):
