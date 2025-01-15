@@ -7,8 +7,6 @@ import uvicorn
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from langgraph.graph import END, START, StateGraph
-import torch
-from transformers import ElectraForPreTraining ,ElectraTokenizerFast
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
@@ -25,6 +23,7 @@ app.add_middleware(
 
 # Set your OpenAI API key
 os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
+genai_api_key = os.getenv("GENAI_API_KEY")
 
 # Define Input and Output State
 class InputState(TypedDict):
@@ -98,7 +97,7 @@ def gemini_evaluation_node(state: InputState) -> OutputState:
     """Use Gimmia Generative AI to evaluate the student answer and return llm_score with feedback."""
 
     # Configure Gimmia Generative AI
-    genai.configure(api_key="AIzaSyDUiT3yPTTo2nmoPRj-hpo2r2OyrPH5cqs")
+    genai.configure(api_key=genai_api_key)
     model = genai.GenerativeModel("gemini-2.0-flash-exp")
 
     # Prepare the evaluation prompt
@@ -447,8 +446,8 @@ async def evaluate_items(items: List[Item]):
             state =gemini_evaluation_node(state)
            # state = llm_evaluation_node(state)  # Update state with LLM evaluation
             state = sbert_evaluation_node(state)  # Add SBERT evaluation results
-            state = roberta_evaluation_node(state)  # Add RoBERTa evaluation results
-            state = distilroberta_evaluation_node(state)  # Add DistilRoBERTa evaluation results
+           # state = roberta_evaluation_node(state)  # Add RoBERTa evaluation results
+           # state = distilroberta_evaluation_node(state)  # Add DistilRoBERTa evaluation results
             #state = t5_evaluation_node(state)  # Add T5 evaluation results
             state = minilm_evaluation_node(state)  # Add MiniLM evaluation results
             state = labse_evaluation_node(state)  # Add LaBSE evaluation results
